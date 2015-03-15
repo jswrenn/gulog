@@ -1,9 +1,36 @@
-
+#![feature(collections)]
+#![feature(core)]
 #![feature(non_ascii_idents)]
+
 use std::vec::*;
 use std::collections::*;
+
+
 fn main() {
-    println!("Hello, world!");
+    let a = Term::Structure(Structure(
+        "test".to_string(),
+        vec!(
+            Term::Variable(Variable("A".to_string())),
+            Term::Atom(Atom("b".to_string())),
+            Term::Variable(Variable("A".to_string()))
+            )));
+            
+    let b = Term::Structure(Structure(
+        "test".to_string(),
+        vec!(
+            Term::Atom(Atom("a".to_string())),
+            Term::Variable(Variable("B".to_string())),
+            Term::Variable(Variable("A".to_string()))
+            )));
+    
+    match unify(a,b) {
+        Ok(unifier) => {
+            for (variable,term) in unifier {
+               println!("{:?}={:?}",variable,term);
+            }
+        },
+        Err(n) => { println!("Err:{}",n);}
+    }
 }
 
 macro_rules! zip {
@@ -11,16 +38,16 @@ macro_rules! zip {
     ($head:expr, $($tail:expr),*) => ($head.iter().zip(zip!($($tail),*)));
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq,Debug)]
 struct Atom(String);
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq,Debug)]
 struct Variable(String);
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq,Debug)]
 struct Structure(String, Vec<Term>);
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq,Debug)]
 enum Term {
     Atom(Atom),
     Variable(Variable),
@@ -65,7 +92,6 @@ fn unify<'a>(s:Term, t:Term) -> Result<Vec<(Variable,Term)>,i32> {
         (Term::Structure(Structure(fₛ, tₛ)), Term::Structure(Structure(fₜ,tₜ))) => {
             if fₛ == fₜ && tₛ.len() == tₜ.len() {
                 let mut substitutions = Vec::new();
-               
                 for (tₛᵢ,tₜᵢ) in zip!(tₛ,tₜ) {
                     let tₛᵢ = apply(&substitutions, &tₛᵢ);
                     let tₜᵢ = apply(&substitutions, &tₜᵢ);
@@ -73,15 +99,15 @@ fn unify<'a>(s:Term, t:Term) -> Result<Vec<(Variable,Term)>,i32> {
                     if let Ok(unifier) = unify(tₛᵢ,tₜᵢ) {
                         substitutions.push_all(unifier.as_slice())
                     } else {
-                        return Err(0)
+                        return Err(1)
                     }
                 }
-                Err(0)
+                Ok(substitutions)
             } else {
-                Err(0)
+                Err(3)
             }
         },
         (Term::Atom(_), Term::Structure(_)) | (Term::Structure(_), Term::Atom(_))
-            => Result::Err(0)
+            => Result::Err(4)
     }
 }
