@@ -3,7 +3,6 @@
 #![feature(non_ascii_idents)]
 
 use std::vec::*;
-use std::collections::*;
 
 
 fn main() {
@@ -24,14 +23,15 @@ fn main() {
             )));
     
     match unify(a,b) {
-        Ok(unifier) => {
+        Some(unifier) => {
             for (variable,term) in unifier {
                println!("{:?}={:?}",variable,term);
             }
         },
-        Err(n) => { println!("Err:{}",n);}
+        None => { println!("{}","Oh tits");}
     }
 }
+
 
 macro_rules! zip {
     ($head:expr) => ($head.iter());
@@ -77,37 +77,46 @@ fn apply(substitutions: &Vec<(Variable,Term)>, term: &Term) -> Term {
     }
 }
 
-fn unify<'a>(s:Term, t:Term) -> Result<Vec<(Variable,Term)>,i32> {
+fn unify(s:Term, t:Term) -> Option<Vec<(Variable,Term)>> {
     match (s, t) {
+        // Unify an atom with another atom
         (Term::Atom(s),Term::Atom(t)) =>
             if s.eq(&t) {
-                Ok(vec![])
+                Some(vec![])
             } else {
-                Err(0)
+                None
             },
            
-        (Term::Variable(s),t@_) | (t@_,Term::Variable(s)) =>
-            Result::Ok(vec![(s,t)]),
            
-        (Term::Structure(Structure(fₛ, tₛ)), Term::Structure(Structure(fₜ,tₜ))) => {
-            if fₛ == fₜ && tₛ.len() == tₜ.len() {
+        // Unify a variable with anything else
+        (Term::Variable(s),t@_) | (t@_,Term::Variable(s)) =>
+            Some(vec![(s,t)]),
+            
+            
+        // Unify two structures.
+        (Term::Structure(Structure(functorₛ, termsₛ)), 
+         Term::Structure(Structure(functorₜ, termsₜ))) =>
+            
+            if functorₛ == functorₜ && termsₛ.len() == termsₜ.len() {
+            
                 let mut substitutions = Vec::new();
-                for (tₛᵢ,tₜᵢ) in zip!(tₛ,tₜ) {
-                    let tₛᵢ = apply(&substitutions, &tₛᵢ);
-                    let tₜᵢ = apply(&substitutions, &tₜᵢ);
+                
+                for (termₛ,termₜ) in zip!(termsₛ,termsₜ) {
+                
+                    let termₛ = apply(&substitutions, &termₛ);
+                    let termₜ = apply(&substitutions, &termₜ);
                    
-                    if let Ok(unifier) = unify(tₛᵢ,tₜᵢ) {
-                        substitutions.push_all(unifier.as_slice())
+                    if let Some(unifier) = unify(termₛ,termₜ) {
+                        substitutions.push_all(&unifier[..])
                     } else {
-                        return Err(1)
+                        return None;
                     }
                 }
-                Ok(substitutions)
+                
+                Some(substitutions)
             } else {
-                Err(3)
-            }
-        },
-        (Term::Atom(_), Term::Structure(_)) | (Term::Structure(_), Term::Atom(_))
-            => Result::Err(4)
+                None
+            },
+        _ => None
     }
 }
